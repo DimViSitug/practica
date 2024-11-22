@@ -1,7 +1,7 @@
 import sys
 
 from PyQt6.QtCore import QSize, QStringListModel
-from PyQt6.QtWidgets import QMainWindow,QTextEdit,QApplication, QHBoxLayout,QDialog,QPushButton, QWidget, QListView, QVBoxLayout
+from PyQt6.QtWidgets import QMainWindow,QTextEdit,QMessageBox,QApplication, QHBoxLayout,QDialog,QPushButton, QWidget, QListView, QVBoxLayout
 from database import Database
 from form_archive_window import FormArchiveWindow
 
@@ -23,7 +23,7 @@ class MainWindow(QMainWindow):
         self.text_edit.setReadOnly(True)
 
         self.button = QPushButton("Архив")
-        self.button.clicked.connect(self.show_patients)
+        self.button.clicked.connect(self.show_napravlenies)
 
 
         buttons = QHBoxLayout()
@@ -39,13 +39,37 @@ class MainWindow(QMainWindow):
 
         self.setCentralWidget(widget)
 
-    def show_patients(self):
+    def show_napravlenies(self):
         # Получение данных из базы данных и отображение их в текстовом поле
-        patients = Database.fetch_patients(self)
-        output = "Список пациентов:\n\n"
-        for name, department, registrar in patients:
-            output += f"Пациент: {name}\nНаправление: {department}\nКто направил: {registrar}\n\n"
-        self.text_edit.setPlainText(output)
+        db = Database()
+        result_raw = db.get_napravlenies()
+        output = []
+        for row in result_raw:
+          try:
+
+            if len(row) >= 3:  # Check if enough elements exist in the tuple  # Extract the first 3 elements.
+                output.append(f"Пациент: {row["id_patients"]}\nНаправление: {row["id_wards"]}\nКто направил: {row["doctor"]}\n\n")
+            else:
+             print(f"Warning: Insufficient data for row: {row}")  # Add a warning
+
+          except (KeyError, IndexError, TypeError, ValueError) as e:
+              print(f"Error processing row: {row}, Error: {e}")
+
+        form = FormArchiveWindow(self, output)
+        form.show()
+
+        
+
+    def update_list_view_patients(self):
+        self.patients_list.clear()
+        try:
+            db = Database() 
+            patients = db.get_napravlenies()
+            for patient in patients:
+                self.patient_list.addItem(patient[0]) 
+        except Exception as e:
+            QMessageBox.critical(self, "Ошибка", f"Ошибка получения списка пациентов: {e}")
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
